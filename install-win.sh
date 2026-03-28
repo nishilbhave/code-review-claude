@@ -4,19 +4,19 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SKILLS_DIR="$HOME/.claude/skills"
 
-echo "Installing code-review-claude..."
+echo "Installing code-review-claude (Windows)..."
 
 # Create skills directory if needed
 mkdir -p "$SKILLS_DIR"
 
-# Symlink each skill
+# Copy each skill (Windows may not support symlinks without developer mode)
 for skill_dir in "$SCRIPT_DIR"/skills/*/; do
     skill_name=$(basename "$skill_dir")
     target="$SKILLS_DIR/$skill_name"
 
     if [ -e "$target" ]; then
         if [ -t 0 ]; then
-            echo "⚠️  $target already exists. Overwrite? (y/N)"
+            echo "Warning: $target already exists. Overwrite? (y/N)"
             read -r response
             if [[ ! "$response" =~ ^[Yy]$ ]]; then
                 echo "Skipping $skill_name"
@@ -26,15 +26,22 @@ for skill_dir in "$SCRIPT_DIR"/skills/*/; do
         rm -rf "$target"
     fi
 
-    ln -s "$skill_dir" "$target"
-    echo "✅ Installed $skill_name"
+    # Try symlink first; fall back to copy if symlinks are not supported
+    if ln -s "$skill_dir" "$target" 2>/dev/null; then
+        echo "Installed $skill_name (symlink)"
+    else
+        cp -r "$skill_dir" "$target"
+        echo "Installed $skill_name (copy)"
+    fi
 done
 
 # Check Python
 if command -v python3 &>/dev/null; then
-    echo "✅ Python 3 found: $(python3 --version)"
+    echo "Python 3 found: $(python3 --version)"
+elif command -v python &>/dev/null; then
+    echo "Python found: $(python --version)"
 else
-    echo "⚠️  Python 3 not found. /review health stats will be unavailable."
+    echo "Warning: Python not found. /review health stats will be unavailable."
 fi
 
 echo ""
